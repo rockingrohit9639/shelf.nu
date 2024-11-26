@@ -1,5 +1,4 @@
-import type { ReactElement } from "react";
-import { useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import type { CustomField, CustomFieldType } from "@prisma/client";
 import { Link, useLoaderData, useNavigation } from "@remix-run/react";
 import type { Zorm } from "react-zorm";
@@ -23,6 +22,12 @@ import { Switch } from "../forms/switch";
 import { SearchIcon } from "../icons/library";
 import { MarkdownEditor } from "../markdown/markdown-editor";
 import { Button } from "../shared/button";
+import When from "../when/when";
+import { tw } from "~/utils/tw";
+
+type FieldTypeToComponent = {
+  [key in CustomFieldType]?: (field: CustomField) => React.ReactElement;
+};
 
 export default function AssetCustomFields({
   zo,
@@ -34,7 +39,6 @@ export default function AssetCustomFields({
   const optionTriggerRef = useRef<HTMLButtonElement>(null);
 
   /** Get the custom fields from the loader */
-
   const { customFields, asset } = useLoaderData<typeof loader>();
 
   const customFieldsValues =
@@ -62,9 +66,7 @@ export default function AssetCustomFields({
     return value ? (getCustomFieldDisplayValue(value, hints) as string) : "";
   };
 
-  const fieldTypeToCompMap: {
-    [key in CustomFieldType]?: (field: CustomField) => ReactElement;
-  } = {
+  const fieldTypeToCompMap: FieldTypeToComponent = {
     BOOLEAN: (field) => (
       <div className="flex items-center gap-3">
         <Switch
@@ -197,6 +199,17 @@ export default function AssetCustomFields({
     },
   };
 
+  const requiredCustomFields = customFields.filter((cf) => cf.required);
+  const optionalCustomFields = customFields.filter((cf) => !cf.required);
+
+  const commonRendererProps = {
+    customFieldsValues,
+    fieldTypeToComponentMap: fieldTypeToCompMap,
+    schema,
+    zo,
+    disabled,
+  };
+
   return (
     <div className="border-b pb-6">
       <div className="mb-6 border-b pb-5">
@@ -208,42 +221,29 @@ export default function AssetCustomFields({
           Manage custom fields
         </Link>
       </div>
-      {customFields.length > 0 ? (
-        customFields.map((field, index) => {
-          const value = customFieldsValues?.find(
-            (cfv) => cfv.customFieldId === field.id
-          )?.value;
-          const displayVal = value
-            ? (getCustomFieldDisplayValue(value) as string)
-            : "";
-          return (
-            <FormRow
-              key={field.id + index}
-              rowLabel={field.name}
-              subHeading={field.helpText ? <p>{field.helpText}</p> : undefined}
-              className="border-b-0"
-              required={field.required}
-            >
-              {typeof fieldTypeToCompMap[field.type] === "function" ? (
-                fieldTypeToCompMap[field.type]!(field as unknown as CustomField)
-              ) : (
-                <Input
-                  hideLabel
-                  placeholder={field.helpText || undefined}
-                  type={field.type.toLowerCase()}
-                  label={field.name}
-                  name={`cf-${field.id}`}
-                  error={zo.errors[`cf-${field.id}`]()?.message}
-                  disabled={disabled}
-                  defaultValue={displayVal}
-                  className="w-full"
-                  required={zodFieldIsRequired(schema.shape[`cf-${field.id}`])}
-                />
-              )}
-            </FormRow>
-          );
-        })
-      ) : (
+
+      <When truthy={!!customFields.length && !!requiredCustomFields.length}>
+        <div>
+          <p className="font-bold text-gray-600">Required fields</p>
+        </div>
+        <CustomFieldsRenderer
+          customFields={requiredCustomFields}
+          {...commonRendererProps}
+        />
+      </When>
+      <When truthy={!!customFields.length && !!optionalCustomFields.length}>
+        <div
+          className={tw(requiredCustomFields.length && "mt-8 border-t pt-8")}
+        >
+          <p className="font-bold text-gray-600">Optional fields</p>
+        </div>
+        <CustomFieldsRenderer
+          customFields={optionalCustomFields}
+          {...commonRendererProps}
+        />
+      </When>
+
+      <When truthy={!customFields.length}>
         <div>
           <div className=" mx-auto max-w-screen-sm rounded-xl border border-gray-300 bg-white px-5 py-10 text-center">
             <div>
@@ -257,7 +257,61 @@ export default function AssetCustomFields({
             </div>
           </div>
         </div>
-      )}
+      </When>
     </div>
   );
+}
+
+type CustomFieldsRendererProps = {
+  customFields: Omit<CustomField, "createdAt" | "updatedAt">[];
+  customFieldsValues: ShelfAssetCustomFieldValueType[];
+  fieldTypeToComponentMap: FieldTypeToComponent;
+  disabled?: boolean;
+  zo: Zorm<z.ZodObject<any, any, any>>;
+  schema: z.ZodObject<any, any, any>;
+};
+
+function CustomFieldsRenderer({
+  customFields,
+  customFieldsValues,
+  fieldTypeToComponentMap,
+  disabled,
+  zo,
+  schema,
+}: CustomFieldsRendererProps) {
+  return customFields.map((field, index) => {
+    const value = customFieldsValues?.find(
+      (cfv) => cfv.customFieldId === field.id
+    )?.value;
+
+    const displayVal = value
+      ? (getCustomFieldDisplayValue(value) as string)
+      : "";
+    return (
+      <FormRow
+        key={field.id + index}
+        rowLabel={field.name}
+        subHeading={field.helpText ? <p>{field.helpText}</p> : undefined}
+        className="border-b-0"
+        required={field.required}
+      >
+        {typeof fieldTypeToComponentMap[field.type] === "function" ? (
+          fieldTypeToComponentMap[field.type]!(field as unknown as CustomField)
+        ) : (
+          <Input
+            hideLabel
+            placeholder={field.helpText || undefined}
+            type={field.type.toLowerCase()}
+            label={field.name}
+            name={`cf-${field.id}`}
+            error={zo.errors[`cf-${field.id}`]()?.message}
+            disabled={disabled}
+            defaultValue={displayVal}
+            className="w-full"
+            required={zodFieldIsRequired(schema.shape[`cf-${field.id}`])}
+          />
+        )}
+      </FormRow>
+    );
+  });
 }
