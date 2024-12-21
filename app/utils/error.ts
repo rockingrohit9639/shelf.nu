@@ -1,6 +1,6 @@
 import { createId } from "@paralleldrive/cuid2";
 import { Prisma } from "@prisma/client";
-import type { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import type { ValidationError } from "./http";
 
 /**
@@ -204,10 +204,7 @@ export function isNotFoundError(
   cause: unknown
 ): cause is PrismaClientKnownRequestError {
   return (
-    typeof cause === "object" &&
-    cause !== null &&
-    "code" in cause &&
-    cause.code === "P2025"
+    cause instanceof PrismaClientKnownRequestError && cause.code === "P2025"
   );
 }
 
