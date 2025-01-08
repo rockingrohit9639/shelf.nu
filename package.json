@@ -6,7 +6,7 @@
   "scripts": {
     "build": "NODE_ENV=production remix vite:build",
     "db:diff": "prisma migrate diff --from-url=${DATABASE_URL} --to-migrations=./app/database/migrations --shadow-database-url=${SHADOW_DATABASE_URL} --script > rollback.sql",
-    "db:prepare-migration": "prisma generate && prisma migrate dev --create-only --skip-seed",
+    "db:prepare-migration": "prisma generate && prisma migrate dev --create-only --skip-seed && tsx app/database/post-migration.ts",
     "db:generate-type": "prisma generate",
     "db:deploy": "prisma migrate deploy",
     "db:deploy-migration": "prisma migrate deploy && prisma generate",
@@ -100,7 +100,6 @@
     "pg-boss": "^9.0.3",
     "pino": "^8.19.0",
     "pino-pretty": "^10.3.1",
-    "puppeteer": "^23.0.2",
     "qrcode-generator": "^1.4.4",
     "react": "18.2.0",
     "react-day-picker": "^8.10.0",
