@@ -74,8 +74,6 @@ export async function loader({ context, request, params }: LoaderFunctionArgs) {
   const cookie = await updateCookieWithPerPage(request, perPageParam);
   const { perPage } = cookie;
   /** Needed for getting the assets */
-  const skip = page > 1 ? (page - 1) * perPage : 0;
-  const take = perPage >= 1 && perPage <= 100 ? perPage : 20; // min 1 and max 100 per page
 
   try {
     const { organizationId, isSelfServiceOrBase, userOrganizations } =
@@ -143,8 +141,6 @@ export async function loader({ context, request, params }: LoaderFunctionArgs) {
               in: booking?.assets.map((a) => a.id) || [],
             },
           },
-          skip,
-          take,
           include: {
             category: true,
             custody: true,
